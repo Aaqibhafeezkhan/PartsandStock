@@ -1,287 +1,153 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
-
 namespace PartsStockCLI;
 
 public class StorageLocations
 {
-    public void StorageMain(string directory, string path)
+    private static readonly string Path_ = JsonStore.DocumentsPath("StorageLocations.json");
+
+    public void StorageMain()
     {
-        if (!File.Exists(path))
+        Console.Clear();
+        Console.WriteLine("Storage Menu");
+        Console.WriteLine("  1) Load Storage Location");
+        Console.WriteLine("  2) Edit Storage Location");
+        Console.WriteLine("  3) Create New Storage Location");
+        Console.WriteLine("  4) Back");
+
+        string choice = Read.Text("Choice: ").Trim();
+        switch (choice)
         {
-            File.Create(path).Close();
-            File.WriteAllText(path, "[]");
+            case "1": LoadLocationMenu(); break;
+            case "2": Console.WriteLine("Not implemented yet."); break;
+            case "3": CreateLocation(); break;
+            case "4": return;
+            default: Console.WriteLine("Invalid input."); break;
+        }
+    }
+
+    private static void LoadLocationMenu()
+    {
+        Console.WriteLine();
+        Console.WriteLine("  1) Location List");
+        Console.WriteLine("  2) Search by Location Name");
+        Console.WriteLine("  3) Back");
+
+        string choice = Read.Text("Choice: ").Trim();
+        switch (choice)
+        {
+            case "1": PrintAll(); break;
+            case "2": SearchByName(); break;
+            case "3": return;
+            default: Console.WriteLine("Invalid input."); break;
+        }
+    }
+
+    private static void PrintAll()
+    {
+        List<StorageLocation> locs = JsonStore.Load<StorageLocation>(Path_);
+        if (locs.Count == 0)
+        {
+            Console.WriteLine("No storage locations defined.");
+            return;
         }
 
-        StorageMenu(path);
+        foreach (StorageLocation loc in locs) PrintLocation(loc, 0);
+    }
 
-        // This is where the user decides what they want to do 
-        void StorageMenu(string path)
+    private static void PrintLocation(StorageLocation loc, int depth)
+    {
+        string indent = new string(' ', depth * 2);
+        Console.WriteLine($"{indent}[{loc.Id}] {loc.LocationName} ({loc.LocationType})");
+
+        if (!string.IsNullOrWhiteSpace(loc.Details))
+            Console.WriteLine($"{indent}    {loc.Details}");
+        if (!string.IsNullOrWhiteSpace(loc.LocationCity))
+            Console.WriteLine($"{indent}    {loc.LocationCity}");
+
+        foreach (StorageLocation child in loc.Children)
+            PrintLocation(child, depth + 1);
+    }
+
+    private static void SearchByName()
+    {
+        string term = Read.RequiredText("Enter the name to search by: ");
+        List<StorageLocation> locs = JsonStore.Load<StorageLocation>(Path_);
+
+        List<StorageLocation> matches = new List<StorageLocation>();
+        foreach (StorageLocation loc in locs) CollectMatches(loc, term, matches);
+
+        if (matches.Count == 0)
         {
-            string storageMenu = "1)Load Storage Location\n" +
-                                 "2)Edit Storage Location\n" +
-                                 "3)Create New Storage Location\n" +
-                                 "B)Go back";
-            Console.WriteLine("Storage Menu\n");
-            Console.WriteLine(storageMenu);
-            string userInput = Console.ReadLine();
-            switch (userInput)
-            {
-                case "1":
-                    LoadLocationMenu(path);
-                    break;
-                case "2":
-                    Console.WriteLine("You chose 2");
-                    break;
-                case "3":
-                    createLocation(path);
-                    break;
-                case "B":
-                    Program.Main();
-                    break;
-                default:
-                    Console.WriteLine("Invalid Input");
-                    break;
-            }
+            Console.WriteLine("No matches found.");
+            return;
         }
 
-        // If a user wants to load a location, this menu is called for the load parameter
-        void LoadLocationMenu(string path)
+        foreach (StorageLocation match in matches)
         {
-            Console.WriteLine("1)Location List\n" +
-                              "2)Search by Location Name\n" +
-                              "B)Go Back");
-            string userIn = Console.ReadLine();
-            switch (userIn)
-            {
-                case "1":
-                    Console.WriteLine(LoadList(path));
-                    break;
-                case "2":
-                    NameSearch searcher = new NameSearch(path);
-                    searcher.search();
-                    break;
-                case "B":
-                    StorageMenu(path);
-                    break;
-                default:
-                    Console.WriteLine("Invalid Input");
-                    break;
+            PrintLocation(match, 0);
+            Console.WriteLine("--------");
+        }
+    }
 
-            }
-
+    private static void CollectMatches(StorageLocation loc, string term, List<StorageLocation> into)
+    {
+        if (loc.LocationName != null &&
+            loc.LocationName.Contains(term, StringComparison.OrdinalIgnoreCase))
+        {
+            into.Add(loc);
         }
 
-        // This is going to be for loading the entire Storage Locations list
-        string LoadList(string path)
+        foreach (StorageLocation child in loc.Children)
+            CollectMatches(child, term, into);
+    }
+
+    private static void CreateLocation()
+    {
+        Console.Clear();
+        List<StorageLocation> locs = JsonStore.Load<StorageLocation>(Path_);
+
+        int nextId = locs.Count == 0 ? 1 : locs.Max(l => l.Id ?? 0) + 1;
+
+        StorageLocation loc = new StorageLocation
         {
-            string load = File.ReadAllText(path);
-            return load;
-        }
+            Id           = nextId++,
+            ParentId     = null,
+            LocationName = Read.RequiredText("Location Name: "),
+            Details      = Read.Text("Details: "),
+            LocationCity = Read.Text("Location City: "),
+            LocationType = Read.Text("Location Type: ")
+        };
 
-
-        // This is for creating a new storage location
-        void createLocation(string path)
+        if (Read.Yes("Does this location have any sublocations? (y/N): "))
         {
-            // Var declarations
-            int sublocationCount = 0;
-            int? idIdx = 1;
-            int? parentID = 1;
-            int subCount = 0;
-            bool sublocations = false;
-            var options = new JsonSerializerOptions
+            int subCount = Read.Int("Sublocation count: ", min: 1);
+            for (int i = 0; i < subCount; i++)
             {
-                WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-
-            };
-            StorageLocation storageLocation = new StorageLocation();
-
-            // Loading JSON file
-            List<StorageLocation> loc =
-                JsonSerializer.Deserialize<List<StorageLocation>>(File.ReadAllText(path), options);
-
-            // Establishing parentID start point
-            int locCount = loc.Count;
-
-            if (locCount >= 1)
-            {
-                locCount++;
-                parentID = locCount;
-            }
-
-            storageLocation.Id = idIdx;
-            Console.WriteLine("Location Name:");
-            storageLocation.LocationName = Console.ReadLine();
-            Console.WriteLine("Details: ");
-            storageLocation.Details = Console.ReadLine();
-            Console.WriteLine("Location City:");
-            storageLocation.LocationCity = Console.ReadLine();
-            Console.WriteLine("Location Type:");
-            storageLocation.LocationType = Console.ReadLine();
-            Console.WriteLine("Does this location have any sublocations? (y/N)");
-            string userInput = Console.ReadLine();
-            if (userInput == "y")
-            {
-                Console.WriteLine("Sublocation count: (nums only)");
-                subCount = int.Parse(Console.ReadLine());
-                sublocations = true;
-            }
-
-            Console.WriteLine("Line 129");
-            storageLocation.ParentId = parentID;
-            Console.WriteLine("Line 131");
-            storageLocation.Children = new List<StorageLocation>();
-            int? subCounter;
-            if (sublocations)
-            {
-                for (int i = 0; i < subCount; i++)
+                Console.WriteLine($"  -- Sublocation {i + 1} --");
+                loc.Children.Add(new StorageLocation
                 {
-                    StorageLocation subLocation = new StorageLocation();
-                    sublocationCount++;
-                    subLocation.Id = idIdx + i + 1;
-                    subCounter = subLocation.Id;
-                    Console.WriteLine($"Sublocation Name {sublocationCount}: ");
-                    subLocation.LocationName = Console.ReadLine();
-                    subLocation.ParentId = storageLocation.Id;
-                    subLocation.Parent = storageLocation;
-                    storageLocation.Children.Add(subLocation);
-                    if (subCounter == 4)
-                    {
-                        Console.Clear();
-                    }
-                }
+                    Id           = nextId++,
+                    ParentId     = loc.Id,
+                    LocationName = Read.RequiredText("  Name: "),
+                    Details      = Read.Text("  Details: "),
+                    LocationCity = Read.Text("  City: "),
+                    LocationType = Read.Text("  Type: ")
+                });
             }
-
-            if (!File.Exists(path))
-            {
-                Console.WriteLine("Line 152");
-                Console.WriteLine("path null");
-                File.Create(path).Close();
-                File.WriteAllText(path, "[]");
-            }
-
-            loc.Add(storageLocation);
-            File.WriteAllText(path, JsonSerializer.Serialize(loc, options));
-            Console.Clear();
-            Program.Main();
-        }
-    }
-
-
-    public class NameSearch(string path)
-    {
-        public void search()
-        {
-            // Console.WriteLine($"Opening: {Path.GetFullPath(path)} ({new FileInfo(path).Length} bytes)");
-            if (!File.Exists(path))
-            {
-                Console.WriteLine($"File not found at {Path.GetFullPath(path)}");
-            }
-
-            Console.WriteLine("Enter the name to search by: ");
-            string userInput = Console.ReadLine();
-            if (userInput == "B")
-            {
-                // This needs changed to bringing the user back to LoadLocationMenu
-                Program.Main();
-            }
-
-            List<StorageLocation> locations;
-            try
-            {
-                string json = File.ReadAllText(path);
-                locations = string.IsNullOrWhiteSpace(json)
-                    ? new()
-                    : JsonSerializer.Deserialize<List<StorageLocation>>(json) ?? new();
-            }
-            catch (JsonException ex)
-            {
-                Console.WriteLine($"Storage file unreadable: {ex.Message}");
-                return;
-            }
-
-        }
-    }
-
-    public class SaveLocation
-    {
-        private string locationName;
-        private string details;
-        private string locationCity;
-        private string locationState;
-        private string locationCountry;
-    }
-
-    public class SubLocation
-    {
-        private string locationName;
-        private string parentLocationName;
-        private int? id;
-        private int? parentId;
-        public SubLocation Parent { get; set; }
-        public List<SubLocation> Children { get; set; }
-    }
-
-    public class StorageLocation
-    {
-
-
-        private string locationName;
-        private string details;
-        private string locationCity;
-        private string locationState;
-        private string locationCountry;
-        private string locationType;
-        private int? id;
-        private int? parentId;
-
-        [JsonIgnore] public StorageLocation Parent { get; set; }
-
-        // Explicit order so parent scalar fields write before Children (STJ defaults to declaration order; Children used to be declared first).
-        [JsonPropertyOrder(0)]
-        public string LocationName
-        {
-            get { return this.locationName; }
-            set { this.locationName = value; }
         }
 
-        [JsonPropertyOrder(1)]
-        public int? Id
-        {
-            get { return this.id; }
-            set { this.id = value; }
-        }
-
-        [JsonPropertyOrder(2)]
-        public int? ParentId
-        {
-            get { return this.parentId; }
-            set { this.parentId = value; }
-        }
-
-        [JsonPropertyOrder(3)]
-        public string LocationCity
-        {
-            get { return this.locationCity; }
-            set { this.locationCity = value; }
-        }
-
-        [JsonPropertyOrder(4)]
-        public string LocationType
-        {
-            get { return this.locationType; }
-            set { this.locationType = value; }
-        }
-
-        [JsonPropertyOrder(5)]
-        public string Details
-        {
-            get { return this.details; }
-            set { this.details = value; }
-        }
-
-        [JsonPropertyOrder(6)] public List<StorageLocation> Children { get; set; }
+        locs.Add(loc);
+        JsonStore.Save(Path_, locs);
+        Console.WriteLine($"Storage location '{loc.LocationName}' created (Id {loc.Id}).");
     }
 }
 
+public class StorageLocation
+{
+    public int? Id { get; set; }
+    public int? ParentId { get; set; }
+    public string LocationName { get; set; } = "";
+    public string Details { get; set; } = "";
+    public string LocationCity { get; set; } = "";
+    public string LocationType { get; set; } = "";
+    public List<StorageLocation> Children { get; set; } = new List<StorageLocation>();
+}

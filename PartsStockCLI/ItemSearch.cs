@@ -1,169 +1,76 @@
-using System.Diagnostics;
-using System.Text.Json;
-
 namespace PartsStockCLI;
 
 public class ItemSearch
 {
-    List<string> appends = new List<string>();
+    private static readonly string Path_ = JsonStore.DocumentsPath("ItemList.json");
+
     public void Menu()
     {
         Console.Clear();
-        var searchReturn = new List<string>();
-        string delimiter = "--------";
-        Console.WriteLine("What parameter would you like to search by?");
-        Console.WriteLine("1) Item Name\n" +
-                          "2) Item Number\n" +
-                          "3) Storage Location\n" +
-                          "4) Sourcing Location\n");
-        string userParameter = Console.ReadLine();
-        switch (userParameter)
+        Console.WriteLine("Search by:");
+        Console.WriteLine("  1) Item Name");
+        Console.WriteLine("  2) Item Number");
+        Console.WriteLine("  3) Storage Location");
+        Console.WriteLine("  4) Sourcing Location");
+        Console.WriteLine("  5) Back");
+
+        string choice = Read.Text("Choice: ").Trim();
+        List<Item> results;
+
+        switch (choice)
         {
-            case "1":
-                // Item  name
-                SearchByName(delimiter);
-                Console.WriteLine("Results: \n");
-                for (int i = 0; i < appends.Count; i++)
-                {
-                    Console.WriteLine("Inside Switch Loop");
-                    Console.WriteLine(appends[i]);
-                }
-
-                Console.WriteLine("Test Prints:");
-                Console.WriteLine($"Appends 0: {appends[0]}");
-                Console.WriteLine($"Appends 1: {appends[1]}");
-                Console.WriteLine($"Appends 2: {appends[2]}");
-                Console.WriteLine($" Appends 3: {appends[3]}");
-                Console.WriteLine($"Appends 4: {appends[4]}");
-                Console.WriteLine($"Appends 5: {appends[5]}");
-                Console.WriteLine($"Appends 6: {appends[6]}");
-                Console.WriteLine($"Appends 7: {appends[7]}");
-                Console.WriteLine($"Appends 8: {appends[8]}");
-
-                break;
-            case "2":
-                SearchByNumber(delimiter);
-                // Item number
-                break;
-            case "3":
-                // Storage Location
-                break;
-            case "4":
-                // Source Location
-                break;
+            case "1": results = SearchByName(); break;
+            case "2": results = SearchByNumber(); break;
+            case "3": results = SearchByField("Storage location", i => i.StorageLocation); break;
+            case "4": results = SearchByField("Sourcing location", i => i.SourcingLocation); break;
+            case "5": return;
             default:
-                break;
+                Console.WriteLine("Invalid input.");
+                return;
         }
+
+        PrintResults(results);
     }
 
-    public void SearchByNumber(string delimiter)
+    private static List<Item> SearchByName()
     {
-        Console.WriteLine("Enter item number: ");
-        int itemNum = Convert.ToInt32(Console.ReadLine());
-        string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ItemList.json");
-        string lines = File.ReadAllText(path);
-        List<Item> items = 
-            JsonSerializer.Deserialize<List<Item>>(lines);
-        Item found = items.FirstOrDefault(i => i.ItemNumber == itemNum);
-        if (found != null)
-        {
-            Console.WriteLine($"Found: {found}");
-        }
-        else
-        {
-            Console.WriteLine("Found null error");
-            
-        }
-
+        string term = Read.RequiredText("Item name to search for: ");
+        return JsonStore.Load<Item>(Path_)
+            .Where(i => i.ItemName.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .ToList();
     }
 
-    public void SearchByName(string delimiter)
-    {   
-        
-        Console.WriteLine("Item name to search for: ");
-        string itemName = Console.ReadLine();
-        StreamReader sw =
-            new StreamReader(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "ItemList.json"));
-        string line = sw.ReadLine();
-        appends.Add(line);
-        Console.WriteLine($"Line check, line 53:\n {line}");
-        line = sw.ReadLine();
-        appends.Add(line);
-            Console.WriteLine($"Line check, line 57:\n {line}");
-            // Console.WriteLine("Line is not null!");
-            // Console.WriteLine(line);
-            // This little loop gets the searched term within the file and appends every
-            // Line between the inital line where the term is found and the next delimiter to appends
-            if (line != null)
-            {
-                    // Console.WriteLine("itemName Found!");
-                    appends.Add(line);
-                    // Console.WriteLine($"Appends: {appends[0]}");
-                    Console.WriteLine($"line70 =  {line}");
-                    line = sw.ReadLine();
-                    appends.Add(line);
-                    Console.WriteLine($"line72 =  {line}");
-                    line = sw.ReadLine();
-                    appends.Add(line);
-                    Console.WriteLine($"line3 =  {line}");
-                    line = sw.ReadLine();
-                    appends.Add(line);
-                    Console.WriteLine($"line4 =  {line}");
-                    line = sw.ReadLine();
-                    appends.Add(line);
-                    Console.WriteLine($"line5 =  {line}");
-                    line = sw.ReadLine();
-                    appends.Add(line);
-                    Console.WriteLine($"line6 =  {line}");
-                    line = sw.ReadLine();
-                    appends.Add(line);
-                    Console.WriteLine($"line7 =  {line}");
-
-
-
-
-                    for (int i = 1; i < appends.Count; i++)
-                    {
-                        if (line != delimiter)
-                        {
-                            appends[i] = line;
-                        }
-
-                        if (line.Contains(delimiter))
-                        {
-                            appends[i] = line;
-                            i = appends.Count;
-                        }
-                    }
-                
-
-
-            
-
-        }
-        Console.WriteLine("Return Reached!");
-        
-    }
-
-    public class Item
+    private static List<Item> SearchByNumber()
     {
-        public string ItemName { get; set; }
-        public int ItemNumber { get; set; }
-        public string ItemDescript { get; set; }
-        public decimal ItemPrice { get; set; }
-        public int Quantity { get; set; }
-        public int Stock { get; set; }
-        public string PurchaseDate { get; set; }
-        public string StorageLocation { get; set; }
-        
+        int number = Read.Int("Enter item number: ", min: 1);
+        return JsonStore.Load<Item>(Path_)
+            .Where(i => i.ItemNumber == number)
+            .ToList();
+    }
 
-        public override string ToString()
+    private static List<Item> SearchByField(string label, Func<Item, string> selector)
+    {
+        string term = Read.RequiredText($"{label} to search for: ");
+        return JsonStore.Load<Item>(Path_)
+            .Where(i => (selector(i) ?? "").Contains(term, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private static void PrintResults(List<Item> results)
+    {
+        Console.WriteLine();
+        if (results.Count == 0)
         {
-            return $"Item Name: {ItemName} | Item Number: {ItemNumber}\n" +
-                   $"Item Description: {ItemDescript} | Item Price: {ItemPrice}" +
-                   $"Quantity: {Quantity} | Stock: {Stock} " +
-                   $"Purchase Date: {PurchaseDate} | Storage Location: {StorageLocation}";
+            Console.WriteLine("No matches found.");
+            return;
+        }
+
+        Console.WriteLine($"Results ({results.Count}):");
+        Console.WriteLine("--------");
+        foreach (Item item in results)
+        {
+            Console.WriteLine(item);
+            Console.WriteLine("--------");
         }
     }
 }

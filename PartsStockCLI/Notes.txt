@@ -481,3 +481,10 @@ Locations before this and it had it's old file creation still in it so it seemed
 
 Anyway I got through that and the searched returned null and the program crashed again. Time to investigate.
 
+10/19/2026-
+
+I'm back!
+
+Notes-
+The city field needs removed from sublocation metadata
+How the location/sublocation is formatted in json needs cleaned up
