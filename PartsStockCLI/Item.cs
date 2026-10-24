@@ -7,7 +7,7 @@ public class Item
     public string ItemDescription { get; set; } = "";
     public decimal ItemPrice { get; set; }
     public int ItemQuantity { get; set; }
-    public int ItemStock { get; set; }
+    
     public string ItemPurchaseDate { get; set; } = "";
     public string StorageLocation { get; set; } = "";
     public string SourcingLocation { get; set; } = "";
@@ -19,8 +19,7 @@ public class Item
 
         return $"Item Name: {ItemName} | Item Number: {ItemNumber}\n" +
                $"  Description: {ItemDescription}\n" +
-               $"  Price: {ItemPrice:F2} | Quantity: {ItemQuantity} | Stock: {ItemStock}\n" +
-               $"  Purchased: {ItemPurchaseDate}\n" +
+               $"  Price: {ItemPrice:F2} | Quantity: {ItemQuantity} |  Purchased: {ItemPurchaseDate}\n" +
                $"  Storage: {storage}\n" +
                $"  Sourced From: {source}";
     }

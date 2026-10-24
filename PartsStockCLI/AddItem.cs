@@ -17,7 +17,6 @@ public class AddItem
             ItemDescription   = Read.Text("Item Description: "),
             ItemPrice         = Read.Decimal("Item Price: "),
             ItemQuantity      = Read.Int("Item Quantity: "),
-            ItemStock         = Read.Int("Item Stock: "),
             ItemPurchaseDate  = Read.Text("Item Purchase Date: "),
             StorageLocation   = Read.Text("Storage Location (optional): "),
             SourcingLocation  = Read.Text("Sourcing Location (optional): ")

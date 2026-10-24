@@ -129,8 +129,7 @@ public class StorageLocations
                     ParentId     = loc.Id,
                     LocationName = Read.RequiredText("  Name: "),
                     Details      = Read.Text("  Details: "),
-                    LocationCity = Read.Text("  City: "),
-                    LocationType = Read.Text("  Type: ")
+                    
                 });
             }
         }

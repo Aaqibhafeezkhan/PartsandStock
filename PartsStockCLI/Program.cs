@@ -15,7 +15,7 @@
             public static void Art()
             {
                 Console.Title = "Parts Stock CLI";
-                Console.ForegroundColor = ConsoleColor.Green;
+                Console.ForegroundColor = ConsoleColor.Cyan;
                 string art =
                     "__________                __           ____     _________ __                 __    \n\\______   \\_____ ________/  |_  ______/  _ \\   /   _____//  |_  ____   ____ |  | __\n |     ___/\\__  \\\\_  __ \\   __\\/  ___/>  _ </\\ \\_____  \\\\   __\\/  _ \\_/ ___\\|  |/ /\n |    |     / __ \\|  | \\/|  |  \\___ \\/  <_\\ \\/ /        \\|  | (  <_> )  \\___|    < \n |____|    (____  /__|   |__| /____  >_____\\ \\/_______  /|__|  \\____/ \\___  >__|_ \\\n                \\/                 \\/       \\/        \\/                  \\/     \\/\n";
                 Console.WriteLine(art);
@@ -33,9 +33,6 @@
                 Console.WriteLine("3) Sourcing");
                 Console.WriteLine("4) Storage Location Setup");
                 Console.WriteLine("5) Exit");
-                Console.WriteLine("Dev Options:");
-                Console.WriteLine("6) Delete File");
-                Console.WriteLine("7) Overwrite File");
                 Console.WriteLine("------------------------");
                 return Read.Int("Choice: ", min: 1);
             }
