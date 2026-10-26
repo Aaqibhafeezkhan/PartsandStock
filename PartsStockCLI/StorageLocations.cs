@@ -24,22 +24,7 @@ public class StorageLocations
         }
     }
 
-    private static void LoadLocationMenu()
-    {
-        Console.WriteLine();
-        Console.WriteLine("  1) Location List");
-        Console.WriteLine("  2) Search by Location Name");
-        Console.WriteLine("  3) Back");
-
-        string choice = Read.Text("Choice: ").Trim();
-        switch (choice)
-        {
-            case "1": PrintAll(); break;
-            case "2": SearchByName(); break;
-            case "3": return;
-            default: Console.WriteLine("Invalid input."); break;
-        }
-    }
+    
 
     private static void PrintAll()
     {
@@ -142,6 +127,31 @@ public class StorageLocations
 
 public class StorageLocation
 {
+    private void ViewItemsByStorageLocation()
+    {
+        string itemsPath = JsonStore.DocumentsPath("ItemList.json");
+    
+        Console.WriteLine("Enter storage location name: ");
+        string locationName = Read.Text("");
+
+        var items = JsonStore.Load<Item>(itemsPath);
+        var itemsAtLocation = items.Where(i => 
+            !string.IsNullOrEmpty(i.StorageLocation) &&
+            i.StorageLocation.Contains(locationName, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (itemsAtLocation.Count == 0)
+        {
+            Console.WriteLine($"No items found at location '{locationName}'.");
+            return;
+        }
+
+        Console.WriteLine($"\n=== Items at '{locationName}' ({itemsAtLocation.Count}) ===\n");
+        foreach (var item in itemsAtLocation)
+        {
+            Console.WriteLine(item.ToString());
+            Console.WriteLine("---");
+        }
+    }
     public int? Id { get; set; }
     public int? ParentId { get; set; }
     public string LocationName { get; set; } = "";
