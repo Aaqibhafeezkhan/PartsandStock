@@ -1,8 +1,15 @@
 namespace PartsStockCLI;
 
+/// <summary>
+/// Manages the hierarchy of physical storage locations (rooms, shelves, bins)
+/// and cross-references which items live where.
+/// </summary>
 public class StorageLocations
 {
     private static readonly string Path_ = JsonStore.DocumentsPath("StorageLocations.json");
+    private static readonly string ItemsPath_ = JsonStore.DocumentsPath("ItemList.json");
+
+    // ---------- Entry point ----------
 
     public void StorageMain()
     {
@@ -11,7 +18,8 @@ public class StorageLocations
         Console.WriteLine("  1) Load Storage Location");
         Console.WriteLine("  2) Edit Storage Location");
         Console.WriteLine("  3) Create New Storage Location");
-        Console.WriteLine("  4) Back");
+        Console.WriteLine("  4) View Items by Storage Location");
+        Console.WriteLine("  5) Back");
 
         string choice = Read.Text("Choice: ").Trim();
         switch (choice)
@@ -19,12 +27,31 @@ public class StorageLocations
             case "1": LoadLocationMenu(); break;
             case "2": Console.WriteLine("Not implemented yet."); break;
             case "3": CreateLocation(); break;
-            case "4": return;
+            case "4": ViewItemsByStorageLocation(); break;
+            case "5": return;
             default: Console.WriteLine("Invalid input."); break;
         }
     }
 
-    
+    // ---------- Load / browse ----------
+
+    private static void LoadLocationMenu()
+    {
+        Console.Clear();
+        Console.WriteLine("Load Storage Location");
+        Console.WriteLine("  1) List All Storage Locations");
+        Console.WriteLine("  2) Search by Location Name");
+        Console.WriteLine("  3) Back");
+
+        string choice = Read.Text("Choice: ").Trim();
+        switch (choice)
+        {
+            case "1": PrintAll(); break;
+            case "2": SearchByName(); break;
+            case "3": return;
+            default: Console.WriteLine("Invalid input."); break;
+        }
+    }
 
     private static void PrintAll()
     {
@@ -85,12 +112,14 @@ public class StorageLocations
             CollectMatches(child, term, into);
     }
 
+    // ---------- Create ----------
+
     private static void CreateLocation()
     {
         Console.Clear();
         List<StorageLocation> locs = JsonStore.Load<StorageLocation>(Path_);
 
-        int nextId = locs.Count == 0 ? 1 : locs.Max(l => l.Id ?? 0) + 1;
+        int nextId = NextId(locs);
 
         StorageLocation loc = new StorageLocation
         {
@@ -113,8 +142,7 @@ public class StorageLocations
                     Id           = nextId++,
                     ParentId     = loc.Id,
                     LocationName = Read.RequiredText("  Name: "),
-                    Details      = Read.Text("  Details: "),
-                    
+                    Details      = Read.Text("  Details: ")
                 });
             }
         }
@@ -123,21 +151,37 @@ public class StorageLocations
         JsonStore.Save(Path_, locs);
         Console.WriteLine($"Storage location '{loc.LocationName}' created (Id {loc.Id}).");
     }
-}
 
-public class StorageLocation
-{
-    private void ViewItemsByStorageLocation()
+    /// <summary>
+    /// Highest Id anywhere in the tree, plus one. Walks children too, so a new
+    /// Id can't collide with a sublocation created in an earlier session.
+    /// </summary>
+    private static int NextId(List<StorageLocation> locs)
     {
-        string itemsPath = JsonStore.DocumentsPath("ItemList.json");
-    
-        Console.WriteLine("Enter storage location name: ");
-        string locationName = Read.Text("");
+        int max = 0;
+        foreach (StorageLocation loc in locs) max = Math.Max(max, MaxId(loc));
+        return max + 1;
+    }
 
-        var items = JsonStore.Load<Item>(itemsPath);
-        var itemsAtLocation = items.Where(i => 
-            !string.IsNullOrEmpty(i.StorageLocation) &&
-            i.StorageLocation.Contains(locationName, StringComparison.OrdinalIgnoreCase)).ToList();
+    private static int MaxId(StorageLocation loc)
+    {
+        int max = loc.Id ?? 0;
+        foreach (StorageLocation child in loc.Children)
+            max = Math.Max(max, MaxId(child));
+        return max;
+    }
+
+    // ---------- Items by storage location ----------
+
+    private static void ViewItemsByStorageLocation()
+    {
+        string locationName = Read.RequiredText("Enter storage location name: ").Trim();
+
+        List<Item> items = JsonStore.Load<Item>(ItemsPath_);
+        List<Item> itemsAtLocation = items
+            .Where(i => !string.IsNullOrWhiteSpace(i.StorageLocation) &&
+                        i.StorageLocation.Contains(locationName, StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
         if (itemsAtLocation.Count == 0)
         {
@@ -145,18 +189,14 @@ public class StorageLocation
             return;
         }
 
-        Console.WriteLine($"\n=== Items at '{locationName}' ({itemsAtLocation.Count}) ===\n");
-        foreach (var item in itemsAtLocation)
+        Console.WriteLine();
+        Console.WriteLine($"=== Items at '{locationName}' ({itemsAtLocation.Count}) ===");
+        Console.WriteLine();
+
+        foreach (Item item in itemsAtLocation)
         {
             Console.WriteLine(item.ToString());
-            Console.WriteLine("---");
+            Console.WriteLine("--------");
         }
     }
-    public int? Id { get; set; }
-    public int? ParentId { get; set; }
-    public string LocationName { get; set; } = "";
-    public string Details { get; set; } = "";
-    public string LocationCity { get; set; } = "";
-    public string LocationType { get; set; } = "";
-    public List<StorageLocation> Children { get; set; } = new List<StorageLocation>();
 }
