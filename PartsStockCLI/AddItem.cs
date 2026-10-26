@@ -2,7 +2,7 @@ namespace PartsStockCLI;
 
 public class AddItem
 {
-    private static readonly string Path_ = JsonStore.DocumentsPath("Downloads/Parts&Stock/ItemList.json");
+    private static readonly string Path_ = JsonStore.DocumentsPath("ItemList.json");
 
     public void NewItem()
     {
